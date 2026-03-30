@@ -1,0 +1,38 @@
+[
+    {
+      "id": "1",
+      "name": "Кирилл",
+      "age": 32,
+      "lastMessage": "Любишь мороженое?",
+      "time": "10:22",
+      "avatar": "https://i.pravatar.cc/100?img=1",
+      "unread": true
+    },
+    {
+      "id": "2",
+      "name": "Аноним",
+      "age": null,
+      "lastMessage": "Мне понравилась ваша анкета...",
+      "time": "09:35",
+      "avatar": null,
+      "unread": false
+    },
+    {
+      "id": "3",
+      "name": "Кент",
+      "age": 18,
+      "lastMessage": "Что любишь слушать?",
+      "time": "09:12",
+      "avatar": null,
+      "unread": false
+    },
+    {
+      "id": "4",
+      "name": "Алина",
+      "age": 46,
+      "lastMessage": "Путешествовала по Рос...",
+      "time": "вчера",
+      "avatar": null,
+      "unread": false
+    }
+  ]

@@ -1,0 +1,24 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+# Build static web output (Expo Router).
+ENV EXPO_PUBLIC_API_URL=/api
+RUN npx expo export --platform web
+
+FROM nginx:1.27-alpine
+
+# Nginx config with API reverse proxy.
+COPY nginx.prod.conf /etc/nginx/conf.d/default.conf
+
+# Expo may output to dist/ (new) or web-build/ (legacy).
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

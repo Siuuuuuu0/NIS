@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nis-backend
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      JWT_SECRET: dev-secret-change-in-production-nis-2026
+
+  web:
+    build:
+      context: ./myapp
+      dockerfile: Dockerfile
+    container_name: nis-web
+    depends_on:
+      - backend
+    ports:
+      - "8081:8081"
+    environment:
+      EXPO_PUBLIC_API_URL: http://localhost:3001/api
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"

@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nis-backend-prod
+    environment:
+      PORT: 3001
+      JWT_SECRET: dev-secret-change-in-production-nis-2026
+    expose:
+      - "3001"
+
+  web:
+    build:
+      context: ./myapp
+      dockerfile: Dockerfile.prod
+    container_name: nis-web-prod
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
