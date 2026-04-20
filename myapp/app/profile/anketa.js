@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useLayoutEffect
+} from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -20,12 +27,41 @@ const CITY_OPTIONS = ['Москва', 'Санкт-Петербург', 'Каза
 const ACTIVITY_OPTIONS = ['Кино', 'Путешествия', 'Животные', 'Прогулки', 'Книги'];
 const SPORT_OPTIONS = ['Футбол', 'Баскетбол', 'Бокс', 'Бег', 'Йога', 'Теннис'];
 const MUSIC_GENRES = ['Хип-хоп', 'Поп', 'Рок', 'Джаз'];
+
 const AVATAR_PRESETS = [
   'https://i.pravatar.cc/200?img=12',
   'https://i.pravatar.cc/200?img=32',
   'https://i.pravatar.cc/200?img=15',
   'https://i.pravatar.cc/200?img=24'
 ];
+
+function buildMePayload({
+  displayName,
+  age,
+  avatar,
+  quote,
+  cities,
+  activities,
+  sports,
+  genres,
+  tracks
+}) {
+  return {
+    displayName: displayName.trim(),
+    age: Number(age) || 18,
+    avatar: avatar.trim() || null,
+    quote: quote.trim(),
+    interests: Array.from(
+      new Set([
+        ...cities,
+        ...activities,
+        ...sports,
+        ...genres
+      ])
+    ),
+    tracks
+  };
+}
 
 export default function MyProfileFormScreen() {
   const router = useRouter();
@@ -37,14 +73,19 @@ export default function MyProfileFormScreen() {
   const [activities, setActivities] = useState([]);
   const [sports, setSports] = useState([]);
   const [genres, setGenres] = useState([]);
-  const [newTag, setNewTag] = useState('');
   const [tracks, setTracks] = useState([]);
   const [newTrack, setNewTrack] = useState('');
   const [avatar, setAvatar] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState('');
+  const trackInputRef = useRef(null);
+  const stateRef = useRef({});
+  const loadingRef = useRef(true);
+  const loadOkRef = useRef(false);
+  const autosaveTimerRef = useRef(null);
 
   const load = useCallback(async () => {
+    loadOkRef.current = false;
     try {
       const me = await api.getMe();
       setQuote(me.quote || '');
@@ -57,6 +98,7 @@ export default function MyProfileFormScreen() {
       setAvatar(me.avatar || '');
       setDisplayName(me.displayName || '');
       setAge(me.age != null ? String(me.age) : '');
+      loadOkRef.current = true;
     } catch (e) {
       if (e.code === 'UNAUTHORIZED') router.replace('/login');
     } finally {
@@ -65,20 +107,82 @@ export default function MyProfileFormScreen() {
   }, [router]);
 
   useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  useLayoutEffect(() => {
+    stateRef.current = {
+      displayName,
+      age,
+      avatar,
+      quote,
+      cities,
+      activities,
+      sports,
+      genres,
+      tracks
+    };
+  });
+
+  useEffect(() => {
     if (ready) load();
   }, [ready, load]);
+
+  const persistSilent = useCallback(async () => {
+    if (!loadOkRef.current || loadingRef.current) return;
+    try {
+      await api.patchMe(buildMePayload(stateRef.current));
+    } catch (e) {
+      if (__DEV__) console.warn('anketa autosave', e?.message || e);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (!loadOkRef.current || loadingRef.current) return;
+        api
+          .patchMe(buildMePayload(stateRef.current))
+          .catch(e => {
+            if (__DEV__) console.warn('anketa save on leave', e?.message || e);
+          });
+      };
+    }, [])
+  );
+
+  useEffect(() => {
+    if (!ready || loading || !loadOkRef.current) {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+      return;
+    }
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      persistSilent();
+    }, 800);
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [
+    ready,
+    loading,
+    cities,
+    activities,
+    sports,
+    genres,
+    tracks,
+    quote,
+    displayName,
+    age,
+    avatar,
+    persistSilent
+  ]);
 
   const saveAll = async () => {
     setSaving(true);
     try {
-      await api.patchMe({
-        displayName: displayName.trim(),
-        age: Number(age) || 18,
-        avatar: avatar.trim() || null,
-        quote: quote.trim(),
-        interests: Array.from(new Set([...cities, ...activities, ...sports, ...genres, ...(newTag.trim() ? [newTag.trim()] : [])])),
-        tracks
-      });
+      await api.patchMe(buildMePayload(stateRef.current));
       Alert.alert('Сохранено');
     } catch (e) {
       Alert.alert('Ошибка', e.message);
@@ -97,13 +201,6 @@ export default function MyProfileFormScreen() {
 
   const removeTrack = label => {
     setTracks(prev => prev.filter(i => i !== label));
-  };
-
-  const addTag = () => {
-    const trimmed = newTag.trim();
-    if (!trimmed) return;
-    setActivities(prev => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
-    setNewTag('');
   };
 
   const addTrack = () => {
@@ -143,7 +240,7 @@ export default function MyProfileFormScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         <View style={styles.topRow}>
           {avatar ? (
@@ -235,20 +332,6 @@ export default function MyProfileFormScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          <View style={styles.addRow}>
-            <TextInput
-              style={styles.addInput}
-              placeholder="Добавить своё занятие..."
-              placeholderTextColor="#C0B0A3"
-              value={newTag}
-              onChangeText={setNewTag}
-              onSubmitEditing={addTag}
-              returnKeyType="done"
-            />
-            <TouchableOpacity style={styles.addPlus} onPress={addTag} activeOpacity={0.8}>
-              <Text style={styles.addPlusText}>＋</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         <View style={styles.section}>
@@ -292,8 +375,9 @@ export default function MyProfileFormScreen() {
             <Text style={styles.sectionTitle}>Музыка (артисты/треки)</Text>
             <TouchableOpacity
               style={styles.plusCircle}
-              onPress={addTrack}
+              onPress={() => trackInputRef.current?.focus()}
               activeOpacity={0.8}
+              accessibilityLabel="Добавить трек"
             >
               <Text style={styles.plusCircleText}>＋</Text>
             </TouchableOpacity>
@@ -319,6 +403,7 @@ export default function MyProfileFormScreen() {
 
           <View style={styles.addRow}>
             <TextInput
+              ref={trackInputRef}
               style={styles.addInput}
               placeholder="Добавить трек, исполнителя или жанр..."
               placeholderTextColor="#C0B0A3"
@@ -326,6 +411,7 @@ export default function MyProfileFormScreen() {
               onChangeText={setNewTrack}
               onSubmitEditing={addTrack}
               returnKeyType="done"
+              blurOnSubmit={false}
             />
             <TouchableOpacity
               style={styles.addPlus}

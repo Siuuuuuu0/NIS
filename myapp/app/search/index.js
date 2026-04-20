@@ -18,15 +18,15 @@ import { BottomTabs } from '../../components/BottomTabs';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import { api } from '../../lib/api';
 
-const CITY_LABELS = ['Москва', 'Санкт-Петербург'];
-const ACTIVITY_LABELS = ['Кино', 'Путешествия', 'Животные'];
-const MUSIC_GENRE_LABELS = ['Хип-хоп'];
+const CITY_LABELS = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург'];
+const ACTIVITY_LABELS = ['Кино', 'Путешествия', 'Животные', 'Прогулки', 'Книги'];
+const MUSIC_GENRE_LABELS = ['Хип-хоп', 'Поп', 'Рок', 'Джаз'];
 const MUSIC_TRACK_LABELS = ['OG Buda', 'Boulevard Depo'];
-const SPORT_LABELS = ['Футбол', 'Баскетбол', 'Бокс'];
+const SPORT_LABELS = ['Футбол', 'Баскетбол', 'Бокс', 'Бег', 'Йога', 'Теннис'];
 
 const SEGMENTS = [
   { key: 'recommended', label: 'Рекомендованные' },
-  { key: 'filters', label: 'По фильтрам' }
+  { key: 'filters', label: 'По сходству' }
 ];
 
 function Chip({ label, active, onPress }) {
@@ -50,6 +50,7 @@ function ResultCard({ item, onOpenProfile, onWrite }) {
   ].slice(0, 4);
 
   const title = `${item.name}${item.age != null ? `, ${item.age}` : ''}`;
+  const similarity = typeof item.similarityPercent === 'number' ? item.similarityPercent : null;
 
   return (
     <View style={styles.card}>
@@ -73,6 +74,10 @@ function ResultCard({ item, onOpenProfile, onWrite }) {
             {title}
           </Text>
 
+          {similarity != null ? (
+            <Text style={styles.similarityText}>Сходство: {similarity}%</Text>
+          ) : null}
+
           {item.quote ? (
             <Text style={styles.quotePreview} numberOfLines={2}>
               {item.quote}
@@ -89,6 +94,11 @@ function ResultCard({ item, onOpenProfile, onWrite }) {
                 </View>
               ))}
             </View>
+          ) : null}
+          {Array.isArray(item.commonInterests) && item.commonInterests.length > 0 ? (
+            <Text style={styles.commonInterestsText} numberOfLines={1}>
+              Общие интересы: {item.commonInterests.join(', ')}
+            </Text>
           ) : null}
         </View>
       </View>
@@ -307,7 +317,7 @@ export default function SearchScreen() {
                   onPress={onAnonymousMatch}
                   activeOpacity={0.9}
                 >
-                  <Text style={styles.anonBtnText}>Подобрать анонимно</Text>
+                  <Text style={styles.anonBtnText}>Анонимный матч по сходству</Text>
                 </TouchableOpacity>
               </>
             ) : null}
@@ -509,6 +519,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8A7465'
   },
+  similarityText: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#A49080',
+    fontWeight: '600'
+  },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -522,6 +538,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4
   },
   tagText: {
+    fontSize: 11,
+    color: '#8A7465'
+  },
+  commonInterestsText: {
+    marginTop: 8,
     fontSize: 11,
     color: '#8A7465'
   },

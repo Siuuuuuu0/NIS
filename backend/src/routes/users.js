@@ -4,7 +4,8 @@ import {
   getUserById,
   publicUser,
   updateUser,
-  softDeleteUser
+  softDeleteUser,
+  sanitizeInterests
 } from '../db/store.js';
 
 const router = Router();
@@ -22,7 +23,7 @@ router.patch('/me', authRequired, (req, res) => {
   if (body.age != null) patch.age = Number(body.age);
   if (body.avatar !== undefined) patch.avatar = body.avatar;
   if (body.quote !== undefined) patch.quote = String(body.quote);
-  if (Array.isArray(body.interests)) patch.interests = body.interests.map(String);
+  if (Array.isArray(body.interests)) patch.interests = sanitizeInterests(body.interests);
   if (Array.isArray(body.tracks)) patch.tracks = body.tracks.map(String);
   const u = updateUser(req.userId, patch);
   if (!u) return res.status(404).json({ error: 'Пользователь не найден' });

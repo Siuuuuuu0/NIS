@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
   TextInput,
   Image,
   ActivityIndicator,
@@ -29,8 +30,9 @@ export default function ChatScreen() {
   const [dismissedAnonInfo, setDismissedAnonInfo] = useState(false);
   const [isProfilePromptVisible, setIsProfilePromptVisible] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadChat = useCallback(async () => {
+  const loadChat = useCallback(async ({ silent = false } = {}) => {
     if (!chatId) return;
     try {
       const d = await api.getChat(chatId);
@@ -40,14 +42,25 @@ export default function ChatScreen() {
         router.replace('/login');
         return;
       }
-      Alert.alert('Ошибка', e.message);
+      if (!silent) {
+        Alert.alert('Ошибка', e.message);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [chatId, router]);
 
   useEffect(() => {
     if (ready && chatId) loadChat();
+  }, [ready, chatId, loadChat]);
+
+  useEffect(() => {
+    if (!ready || !chatId) return undefined;
+    const timer = setInterval(() => {
+      loadChat({ silent: true });
+    }, 3000);
+    return () => clearInterval(timer);
   }, [ready, chatId, loadChat]);
 
   const isAnonExpired =
@@ -57,7 +70,12 @@ export default function ChatScreen() {
     Date.now() >= new Date(detail.anonymousDeadline).getTime();
 
   const isAnonChat = !!(detail?.isAnonymous && !detail?.revealed);
+  const anonymousState = detail?.anonymousState || {};
   const showAnonInfo = isAnonChat && !isAnonExpired && !dismissedAnonInfo;
+  const showStarterPrompts =
+    Array.isArray(detail?.starterPrompts) &&
+    detail.starterPrompts.length > 0 &&
+    (detail?.messages?.length || 0) <= 2;
 
   const title = detail?.title || 'Чат';
 
@@ -76,12 +94,40 @@ export default function ChatScreen() {
     }
   };
 
-  const onReveal = async () => {
+  const onRequestReveal = async () => {
     try {
-      const d = await api.revealChat(chatId);
+      const d = await api.requestRevealChat(chatId);
       setDetail(d);
       setIsProfilePromptVisible(false);
       await loadChat();
+    } catch (e) {
+      Alert.alert('Ошибка', e.message);
+    }
+  };
+
+  const onRespondReveal = async accept => {
+    try {
+      const d = await api.respondRevealChat(chatId, accept);
+      setDetail(d);
+      await loadChat();
+    } catch (e) {
+      Alert.alert('Ошибка', e.message);
+    }
+  };
+
+  const onAnonymousDecision = async continueAnonymous => {
+    try {
+      const result = await api.decideAnonymousAfterReject(chatId, continueAnonymous);
+      if (result?.deleted) {
+        Alert.alert('Чат удален', 'Диалог завершен по вашему выбору.');
+        router.replace('/');
+        return;
+      }
+      if (result?.chat) {
+        setDetail(result.chat);
+      } else {
+        await loadChat();
+      }
     } catch (e) {
       Alert.alert('Ошибка', e.message);
     }
@@ -170,7 +216,7 @@ export default function ChatScreen() {
 
       {isMenuOpen && (
         <View style={styles.menu}>
-          {isAnonChat && (
+          {isAnonChat && anonymousState.canRequestReveal && (
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
@@ -196,7 +242,40 @@ export default function ChatScreen() {
       <ScrollView
         contentContainerStyle={styles.messagesContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadChat({ silent: true });
+            }}
+          />
+        }
       >
+        {isAnonChat && anonymousState.requestedByMe && (
+          <View style={styles.statusBanner}>
+            <Text style={styles.statusBannerText}>
+              Запрос на раскрытие отправлен. Ждем решение собеседника.
+            </Text>
+          </View>
+        )}
+        {isAnonChat && Array.isArray(detail?.sharedInterests) && detail.sharedInterests.length > 0 && (
+          <View style={styles.statusBanner}>
+            <Text style={styles.statusBannerText}>
+              Общие интересы: {detail.sharedInterests.join(', ')}
+            </Text>
+          </View>
+        )}
+        {isAnonChat && showStarterPrompts && (
+          <View style={styles.startersCard}>
+            <Text style={styles.startersTitle}>Подсказки для старта</Text>
+            {detail.starterPrompts.map((prompt, idx) => (
+              <Text key={`starter-${idx}`} style={styles.starterItem}>
+                {`\u2022 ${prompt}`}
+              </Text>
+            ))}
+          </View>
+        )}
         {(detail.messages || []).map(msg => (
           <View
             key={msg.id}
@@ -241,7 +320,7 @@ export default function ChatScreen() {
           onPress={onSend}
           disabled={sending || isAnonExpired}
         >
-          <Text style={styles.sendButtonText}>Отпр</Text>
+          <Text style={styles.sendButtonText}>Отправить</Text>
         </TouchableOpacity>
       </View>
 
@@ -290,10 +369,10 @@ export default function ChatScreen() {
       {isProfilePromptVisible && (
         <View style={styles.overlay}>
           <View style={styles.promptCard}>
-            <Text style={styles.infoTitle}>Показать анкету собеседнику?</Text>
+            <Text style={styles.infoTitle}>Отправить запрос на раскрытие?</Text>
             <Text style={styles.infoText}>
-              Собеседник увидит ваше фото, имя и возраст. Чат перестанет быть
-              анонимным.
+              Собеседник увидит запрос и сможет принять или отклонить его. До
+              подтверждения чат останется анонимным.
             </Text>
             <View style={styles.promptButtonsRow}>
               <TouchableOpacity
@@ -311,11 +390,66 @@ export default function ChatScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.promptButton, styles.promptButtonPrimary]}
-                onPress={onReveal}
+                onPress={onRequestReveal}
               >
                 <Text style={styles.promptButtonTextPrimary}>
-                  Показать анкету
+                  Отправить запрос
                 </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {isAnonChat && anonymousState.canRespondToReveal && (
+        <View style={styles.overlay}>
+          <View style={styles.promptCard}>
+            <Text style={styles.infoTitle}>Собеседник хочет раскрыться</Text>
+            <Text style={styles.infoText}>
+              Если примете запрос, анкеты откроются полностью для обеих сторон.
+            </Text>
+            <View style={styles.promptButtonsRow}>
+              <TouchableOpacity
+                style={[styles.promptButton, styles.promptButtonSecondary]}
+                onPress={() => onRespondReveal(false)}
+              >
+                <Text style={[styles.promptButtonText, styles.promptButtonTextSecondary]}>
+                  Отклонить
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.promptButton, styles.promptButtonPrimary]}
+                onPress={() => onRespondReveal(true)}
+              >
+                <Text style={styles.promptButtonTextPrimary}>Принять</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {isAnonChat && anonymousState.needsAnonymousDecision && (
+        <View style={styles.overlay}>
+          <View style={styles.promptCard}>
+            <Text style={styles.infoTitle}>Запрос на раскрытие отклонен</Text>
+            <Text style={styles.infoText}>
+              Хотите продолжить в анонимном режиме? Если нет, чат будет удален
+              автоматически.
+            </Text>
+            <View style={styles.promptButtonsRow}>
+              <TouchableOpacity
+                style={[styles.promptButton, styles.promptButtonSecondary]}
+                onPress={() => onAnonymousDecision(false)}
+              >
+                <Text style={[styles.promptButtonText, styles.promptButtonTextSecondary]}>
+                  Удалить чат
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.promptButton, styles.promptButtonPrimary]}
+                onPress={() => onAnonymousDecision(true)}
+              >
+                <Text style={styles.promptButtonTextPrimary}>Продолжить анонимно</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -399,6 +533,37 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 14,
     color: '#5A3D2A'
+  },
+  statusBanner: {
+    backgroundColor: '#F2E3D7',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 8
+  },
+  statusBannerText: {
+    fontSize: 12,
+    color: '#8A7465'
+  },
+  startersCard: {
+    backgroundColor: '#FFF0E5',
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#F2C9AA',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10
+  },
+  startersTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5A3D2A',
+    marginBottom: 6
+  },
+  starterItem: {
+    fontSize: 12,
+    color: '#8A7465',
+    marginBottom: 4
   },
   messagesContainer: {
     paddingHorizontal: 16,

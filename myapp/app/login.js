@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  View,
   Text,
   TextInput,
   TouchableOpacity,
@@ -57,7 +56,7 @@ export default function LoginScreen() {
       >
         <Text style={styles.title}>Вход</Text>
         <Text style={styles.hint}>
-          Тест: andrey / password123 (запусти бэкенд в папке backend)
+          Тестовые аккаунты: andrey / password123 и dasha / password123
         </Text>
 
         <TextInput

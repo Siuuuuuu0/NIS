@@ -63,7 +63,19 @@ export const api = {
 
   deleteChat: id => request(`/chats/${id}`, { method: 'DELETE' }),
 
-  revealChat: id => request(`/chats/${id}/reveal`, { method: 'POST' }),
+  requestRevealChat: id => request(`/chats/${id}/reveal-request`, { method: 'POST' }),
+
+  respondRevealChat: (id, accept) =>
+    request(`/chats/${id}/reveal-response`, {
+      method: 'POST',
+      body: JSON.stringify({ accept })
+    }),
+
+  decideAnonymousAfterReject: (id, continueAnonymous) =>
+    request(`/chats/${id}/anonymous-decision`, {
+      method: 'POST',
+      body: JSON.stringify({ continueAnonymous })
+    }),
 
   createChat: (targetUserId, anonymous = false) =>
     request('/chats', {

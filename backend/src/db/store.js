@@ -2,6 +2,31 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 
 const now = () => new Date().toISOString();
+const PRESET_INTERESTS = [
+  'Москва',
+  'Санкт-Петербург',
+  'Казань',
+  'Екатеринбург',
+  'Кино',
+  'Путешествия',
+  'Животные',
+  'Прогулки',
+  'Книги',
+  'Футбол',
+  'Баскетбол',
+  'Бокс',
+  'Бег',
+  'Йога',
+  'Теннис',
+  'Хип-хоп',
+  'Поп',
+  'Рок',
+  'Джаз',
+  'Искусство',
+  'Инди',
+  'Музыка'
+];
+const PRESET_INTERESTS_SET = new Set(PRESET_INTERESTS);
 
 /** @type {Map<string, object>} */
 const usersById = new Map();
@@ -25,6 +50,11 @@ export function seed() {
   const romanId = 'u-roman';
   const katyaId = 'u-katya';
   const ilyaId = 'u-ilya';
+  const vikaId = 'u-vika';
+  const sergeyId = 'u-sergey';
+  const nastyaId = 'u-nastya';
+  const olegId = 'u-oleg';
+  const polinaId = 'u-polina';
 
   usersById.set(andreyId, {
     id: andreyId,
@@ -176,6 +206,81 @@ export function seed() {
   });
   usernameToId.set('ilya', ilyaId);
 
+  usersById.set(vikaId, {
+    id: vikaId,
+    username: 'vika',
+    passwordHash: hash('password123'),
+    displayName: 'Вика',
+    age: 21,
+    avatar: 'https://i.pravatar.cc/200?img=5',
+    quote: 'Рисую и слушаю инди.',
+    interests: ['Москва', 'Искусство', 'Путешествия', 'Инди'],
+    tracks: ['Arctic Monkeys', 'The Weeknd'],
+    createdAt: now(),
+    deleted: false
+  });
+  usernameToId.set('vika', vikaId);
+
+  usersById.set(sergeyId, {
+    id: sergeyId,
+    username: 'sergey',
+    passwordHash: hash('password123'),
+    displayName: 'Сергей',
+    age: 31,
+    avatar: 'https://i.pravatar.cc/200?img=33',
+    quote: 'Стартапы, бег, подкасты.',
+    interests: ['Москва', 'Бег', 'Путешествия', 'Поп'],
+    tracks: ['Boulevard Depo', 'Scriptonite'],
+    createdAt: now(),
+    deleted: false
+  });
+  usernameToId.set('sergey', sergeyId);
+
+  usersById.set(nastyaId, {
+    id: nastyaId,
+    username: 'nastya',
+    passwordHash: hash('password123'),
+    displayName: 'Настя',
+    age: 24,
+    avatar: null,
+    quote: 'Кофе, книги, джаз.',
+    interests: ['Санкт-Петербург', 'Кино', 'Джаз', 'Путешествия'],
+    tracks: ['Nujabes', 'Billie Eilish'],
+    createdAt: now(),
+    deleted: false
+  });
+  usernameToId.set('nastya', nastyaId);
+
+  usersById.set(olegId, {
+    id: olegId,
+    username: 'oleg',
+    passwordHash: hash('password123'),
+    displayName: 'Олег',
+    age: 35,
+    avatar: 'https://i.pravatar.cc/200?img=59',
+    quote: 'Горные лыжи и рок-концерты.',
+    interests: ['Казань', 'Путешествия', 'Рок', 'Футбол'],
+    tracks: ['Arctic Monkeys', 'Miyagi'],
+    createdAt: now(),
+    deleted: false
+  });
+  usernameToId.set('oleg', olegId);
+
+  usersById.set(polinaId, {
+    id: polinaId,
+    username: 'polina',
+    passwordHash: hash('password123'),
+    displayName: 'Полина',
+    age: 27,
+    avatar: 'https://i.pravatar.cc/200?img=45',
+    quote: 'Йога по утрам, сериалы по вечерам.',
+    interests: ['Москва', 'Йога', 'Кино', 'Поп'],
+    tracks: ['Dua Lipa', 'Ariana Grande'],
+    createdAt: now(),
+    deleted: false
+  });
+  usernameToId.set('polina', polinaId);
+
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
   const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -201,16 +306,17 @@ export function seed() {
     ]
   });
 
+  // Анонимные чаты с другими людьми — не дублируем пару andrey+kirill (иначе два «Кирилла» в списке после раскрытия).
   chatsById.set('c2', {
     id: 'c2',
-    participantIds: [andreyId, kirillId],
+    participantIds: [andreyId, dashaId],
     isAnonymous: true,
     revealed: false,
     createdAt: threeDaysAgo,
     messages: [
       {
         id: 'm1',
-        senderId: kirillId,
+        senderId: dashaId,
         text: 'Мне понравилась ваша анкета, давайте познакомимся?',
         createdAt: new Date(Date.now() - 7200000).toISOString()
       },
@@ -225,16 +331,48 @@ export function seed() {
 
   chatsById.set('c2-old', {
     id: 'c2-old',
-    participantIds: [andreyId, kirillId],
+    participantIds: [andreyId, mishaId],
     isAnonymous: true,
     revealed: false,
     createdAt: eightDaysAgo,
     messages: [
       {
         id: 'm1',
-        senderId: kirillId,
+        senderId: mishaId,
         text: 'Старый анонимный чат (для теста недели).',
         createdAt: eightDaysAgo
+      }
+    ]
+  });
+
+  chatsById.set('c5', {
+    id: 'c5',
+    participantIds: [andreyId, vikaId],
+    isAnonymous: false,
+    revealed: true,
+    createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+    messages: [
+      {
+        id: 'm1',
+        senderId: vikaId,
+        text: 'Привет! Как настроение?',
+        createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
+      }
+    ]
+  });
+
+  chatsById.set('c6', {
+    id: 'c6',
+    participantIds: [andreyId, sergeyId],
+    isAnonymous: false,
+    revealed: true,
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    messages: [
+      {
+        id: 'm1',
+        senderId: andreyId,
+        text: 'Добрый день, увидел общие интересы.',
+        createdAt: new Date(Date.now() - 86400000 * 5 + 3600000).toISOString()
       }
     ]
   });
@@ -319,6 +457,19 @@ export function updateUser(id, patch) {
   return u;
 }
 
+export function sanitizeInterests(interests) {
+  if (!Array.isArray(interests)) return [];
+  const cleaned = interests
+    .map(x => String(x).trim())
+    .filter(Boolean)
+    .filter(x => PRESET_INTERESTS_SET.has(x));
+  return [...new Set(cleaned)];
+}
+
+export function getPresetInterests() {
+  return [...PRESET_INTERESTS];
+}
+
 export function softDeleteUser(id) {
   const u = usersById.get(id);
   if (!u) return false;
@@ -356,7 +507,74 @@ export function revealChat(chatId) {
   if (!chat || !chat.isAnonymous) return null;
   chat.revealed = true;
   chat.isAnonymous = false;
+  chat.revealRequest = {
+    status: 'accepted',
+    requestedByUserId: null,
+    respondedByUserId: null,
+    createdAt: now(),
+    respondedAt: now()
+  };
+  chat.awaitingAnonymousDecisionForUserId = null;
   return chat;
+}
+
+export function requestRevealChat(chatId, requesterId) {
+  const chat = chatsById.get(chatId);
+  if (!chat || !chat.isAnonymous || chat.revealed) return null;
+  if (!chat.participantIds.includes(requesterId)) return null;
+  if (chat.revealRequest?.status === 'pending') return chat;
+  chat.revealRequest = {
+    status: 'pending',
+    requestedByUserId: requesterId,
+    respondedByUserId: null,
+    createdAt: now(),
+    respondedAt: null
+  };
+  chat.awaitingAnonymousDecisionForUserId = null;
+  return chat;
+}
+
+export function respondRevealRequest(chatId, responderId, accept) {
+  const chat = chatsById.get(chatId);
+  if (!chat || !chat.isAnonymous || chat.revealed) return null;
+  if (!chat.participantIds.includes(responderId)) return null;
+  if (!chat.revealRequest || chat.revealRequest.status !== 'pending') return null;
+  if (chat.revealRequest.requestedByUserId === responderId) return null;
+
+  const accepted = Boolean(accept);
+  chat.revealRequest = {
+    ...chat.revealRequest,
+    status: accepted ? 'accepted' : 'rejected',
+    respondedByUserId: responderId,
+    respondedAt: now()
+  };
+
+  if (accepted) {
+    chat.revealed = true;
+    chat.isAnonymous = false;
+    chat.awaitingAnonymousDecisionForUserId = null;
+  } else {
+    chat.awaitingAnonymousDecisionForUserId = chat.revealRequest.requestedByUserId;
+  }
+  return chat;
+}
+
+export function decideAnonymousAfterReject(chatId, requesterId, continueAnonymous) {
+  const chat = chatsById.get(chatId);
+  if (!chat) return { status: 'not_found', chat: null };
+  if (!chat.participantIds.includes(requesterId)) return { status: 'forbidden', chat: null };
+  if (chat.awaitingAnonymousDecisionForUserId !== requesterId) {
+    return { status: 'no_pending_decision', chat };
+  }
+
+  if (!continueAnonymous) {
+    chatsById.delete(chatId);
+    return { status: 'deleted', chat: null };
+  }
+
+  chat.awaitingAnonymousDecisionForUserId = null;
+  chat.revealRequest = null;
+  return { status: 'continued', chat };
 }
 
 export function publicUser(u) {
@@ -381,13 +599,19 @@ export function anonWeekDeadlineIso(createdAt) {
 export function findChatBetween(userIdA, userIdB) {
   const a = userIdA;
   const b = userIdB;
+  const matches = [];
   for (const chat of chatsById.values()) {
     if (!chat.participantIds || chat.participantIds.length !== 2) continue;
     const hasA = chat.participantIds.includes(a);
     const hasB = chat.participantIds.includes(b);
-    if (hasA && hasB) return chat;
+    if (hasA && hasB) matches.push(chat);
   }
-  return null;
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0];
+  matches.sort(
+    (x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()
+  );
+  return matches[0];
 }
 
 export function createChatBetween(userIdA, userIdB, { anonymous = false } = {}) {
@@ -401,6 +625,8 @@ export function createChatBetween(userIdA, userIdB, { anonymous = false } = {}) 
     participantIds: [userIdA, userIdB],
     isAnonymous: !!anonymous,
     revealed: !anonymous,
+    revealRequest: null,
+    awaitingAnonymousDecisionForUserId: null,
     createdAt,
     messages: []
   };
