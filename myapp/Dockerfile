@@ -9,4 +9,5 @@ COPY . .
 
 EXPOSE 8081
 
-CMD ["npx", "expo", "start", "--web", "--host", "0.0.0.0", "--port", "8081", "--non-interactive"]
+# Expo only accepts --host lan|tunnel|localhost (not 0.0.0.0). CI=1 in compose disables interactive prompts.
+CMD ["npx", "expo", "start", "--web", "--host", "lan", "--port", "8081"]
