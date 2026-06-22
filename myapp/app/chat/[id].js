@@ -31,6 +31,7 @@ export default function ChatScreen() {
   const [isProfilePromptVisible, setIsProfilePromptVisible] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   const loadChat = useCallback(async ({ silent = false } = {}) => {
     if (!chatId) return;
@@ -71,6 +72,12 @@ export default function ChatScreen() {
 
   const isAnonChat = !!(detail?.isAnonymous && !detail?.revealed);
   const anonymousState = detail?.anonymousState || {};
+  const showExpiredOverlay =
+    isAnonExpired &&
+    !isProfilePromptVisible &&
+    !anonymousState.requestedByMe &&
+    !anonymousState.canRespondToReveal &&
+    !anonymousState.needsAnonymousDecision;
   const showAnonInfo = isAnonChat && !isAnonExpired && !dismissedAnonInfo;
   const showStarterPrompts =
     Array.isArray(detail?.starterPrompts) &&
@@ -134,21 +141,18 @@ export default function ChatScreen() {
   };
 
   const onDeleteChat = () => {
-    Alert.alert('Удалить чат?', '', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Удалить',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.deleteChat(chatId);
-            router.replace('/');
-          } catch (e) {
-            Alert.alert('Ошибка', e.message);
-          }
-        }
-      }
-    ]);
+    setIsMenuOpen(false);
+    setDeleteConfirmVisible(true);
+  };
+
+  const performDeleteChat = async () => {
+    setDeleteConfirmVisible(false);
+    try {
+      await api.deleteChat(chatId);
+      router.replace('/');
+    } catch (e) {
+      Alert.alert('Ошибка', e.message);
+    }
   };
 
   if (!ready) {
@@ -324,7 +328,7 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </View>
 
-      {isAnonExpired && (
+      {showExpiredOverlay && (
         <View style={styles.overlay}>
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>Срок анонимного чата</Text>
@@ -422,6 +426,33 @@ export default function ChatScreen() {
                 onPress={() => onRespondReveal(true)}
               >
                 <Text style={styles.promptButtonTextPrimary}>Принять</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {deleteConfirmVisible && (
+        <View style={[styles.overlay, styles.overlayTop]}>
+          <View style={styles.promptCard}>
+            <Text style={styles.infoTitle}>Удалить чат?</Text>
+            <Text style={styles.infoText}>
+              Переписка будет удалена без возможности восстановления.
+            </Text>
+            <View style={styles.promptButtonsRow}>
+              <TouchableOpacity
+                style={[styles.promptButton, styles.promptButtonSecondary]}
+                onPress={() => setDeleteConfirmVisible(false)}
+              >
+                <Text style={[styles.promptButtonText, styles.promptButtonTextSecondary]}>
+                  Отмена
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.promptButton, styles.promptButtonPrimary]}
+                onPress={performDeleteChat}
+              >
+                <Text style={styles.promptButtonTextPrimary}>Удалить</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -663,6 +694,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     zIndex: 30
+  },
+  overlayTop: {
+    zIndex: 40
   },
   infoCard: {
     backgroundColor: '#FFF7F0',

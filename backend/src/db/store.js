@@ -345,6 +345,44 @@ export function seed() {
     ]
   });
 
+  chatsById.set('c7-expired', {
+    id: 'c7-expired',
+    participantIds: [andreyId, lenaId],
+    isAnonymous: true,
+    revealed: false,
+    createdAt: eightDaysAgo,
+    messages: [
+      {
+        id: 'm1',
+        senderId: lenaId,
+        text: 'Привет! Давно не писали — этот чат старше недели.',
+        createdAt: eightDaysAgo
+      },
+      {
+        id: 'm2',
+        senderId: andreyId,
+        text: 'Да, нужно решить с раскрытием.',
+        createdAt: new Date(new Date(eightDaysAgo).getTime() + 3600000).toISOString()
+      }
+    ]
+  });
+
+  chatsById.set('c8-expired', {
+    id: 'c8-expired',
+    participantIds: [andreyId, olegId],
+    isAnonymous: true,
+    revealed: false,
+    createdAt: eightDaysAgo,
+    messages: [
+      {
+        id: 'm1',
+        senderId: olegId,
+        text: 'Анонимный чат с истёкшим сроком (тест).',
+        createdAt: eightDaysAgo
+      }
+    ]
+  });
+
   chatsById.set('c5', {
     id: 'c5',
     participantIds: [andreyId, vikaId],

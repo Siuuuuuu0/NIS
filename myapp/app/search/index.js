@@ -44,10 +44,19 @@ function Chip({ label, active, onPress }) {
 }
 
 function ResultCard({ item, onOpenProfile, onWrite }) {
-  const tags = [
-    ...(item.interests || []).slice(0, 2),
-    ...(item.tracks || []).slice(0, 2)
-  ].slice(0, 4);
+  const sharedTags = [
+    ...(item.matchedFilters || []),
+    ...(item.commonInterests || []),
+    ...(item.matches || [])
+  ].filter((tag, idx, arr) => arr.indexOf(tag) === idx);
+
+  const tags =
+    sharedTags.length > 0
+      ? sharedTags.slice(0, 4)
+      : [
+          ...(item.interests || []).slice(0, 2),
+          ...(item.tracks || []).slice(0, 2)
+        ].slice(0, 4);
 
   const title = `${item.name}${item.age != null ? `, ${item.age}` : ''}`;
   const similarity = typeof item.similarityPercent === 'number' ? item.similarityPercent : null;

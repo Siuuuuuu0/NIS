@@ -28,6 +28,14 @@ function overlapItems(a, b) {
   return overlap;
 }
 
+function hasAllSelected(user, selectedInterests, selectedTracks) {
+  const userInterests = new Set(user?.interests || []);
+  const userTracks = new Set(user?.tracks || []);
+  if (selectedInterests.some(i => !userInterests.has(i))) return false;
+  if (selectedTracks.some(t => !userTracks.has(t))) return false;
+  return true;
+}
+
 function isTextMatched(user, text) {
   if (!text) return true;
   return [user.displayName, user.quote, ...(user.interests || []), ...(user.tracks || [])]
@@ -77,8 +85,9 @@ router.get('/recommendations', authRequired, (req, res) => {
       name: u.displayName,
       age: u.age,
       city: u.interests?.find(x => /москва|петербург|город/i.test(x)) || null,
-      tags: u.interests?.filter(x => !/москва|петербург/i.test(x)).slice(0, 3) || [],
+      tags: similarity.commonInterests.slice(0, 4),
       matches: similarity.commonInterests.slice(0, 4),
+      commonInterests: similarity.commonInterests.slice(0, 4),
       quote: u.quote || '',
       avatar: u.avatar,
       interests: u.interests || [],
@@ -101,11 +110,18 @@ router.post('/users', authRequired, (req, res) => {
 
   const excludedIds = getExcludedUserIds(req.userId);
 
+  const hasInterestFilters = interests.length > 0 || tracks.length > 0;
+
   const users = listUsers()
     .filter(u => u.id !== req.userId && !u.deleted && !excludedIds.has(u.id))
     .filter(u => isTextMatched(u, text))
+    .filter(u => !hasInterestFilters || hasAllSelected(u, interests, tracks))
     .map(u => {
       const similarity = buildSimilarity(me, u, interests, tracks, text);
+      const matchedFilters = [
+        ...overlapItems(interests, u.interests || []),
+        ...overlapItems(tracks, u.tracks || [])
+      ];
       return {
         id: u.id,
         name: u.displayName,
@@ -116,7 +132,8 @@ router.post('/users', authRequired, (req, res) => {
         tracks: u.tracks || [],
         similarityPercent: similarity.similarityPercent,
         score: similarity.score,
-        commonInterests: similarity.commonInterests.slice(0, 4)
+        commonInterests: similarity.commonInterests.slice(0, 4),
+        matchedFilters: matchedFilters.slice(0, 4)
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -132,9 +149,11 @@ router.post('/anonymous-match', authRequired, (req, res) => {
   const me = getUserById(meId);
 
   const excludedIds = getExcludedUserIds(meId);
-  const candidates = listUsers().filter(
-    u => u.id !== meId && !u.deleted && !excludedIds.has(u.id)
-  );
+  const hasFilters = selectedInterests.length > 0 || selectedTracks.length > 0;
+
+  const candidates = listUsers()
+    .filter(u => u.id !== meId && !u.deleted && !excludedIds.has(u.id))
+    .filter(u => !hasFilters || hasAllSelected(u, selectedInterests, selectedTracks));
 
   const ranked = candidates
     .map(u => ({ user: u, ...buildSimilarity(me, u, selectedInterests, selectedTracks) }))
